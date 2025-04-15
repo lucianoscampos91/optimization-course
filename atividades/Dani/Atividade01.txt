@@ -1,0 +1,674 @@
+#4. f(x1, x2) = x21+ 2x1x2 + 2x22, ¯x = (1, 1)T .
+
+import numpy as np
+from sympy import symbols, diff, Matrix, lambdify
+import matplotlib.pyplot as plt
+
+class QuadraticFunctionAnalyzer:
+    def __init__(self):
+        self.x1, self.x2 = symbols('x1 x2')
+        self.f_sym = self.x1**2 + 2*self.x1*self.x2 + 2*self.x2**2
+        self.x_bar = np.array([1, 1])
+        self.d = np.array([1, -1])  # Direção de exemplo
+
+    def compute_gradient(self):
+        """Calcula o gradiente simbólico e avalia em x̄."""
+        grad = [diff(self.f_sym, var) for var in (self.x1, self.x2)]
+        grad_at_xbar = [expr.subs({self.x1:1, self.x2:1}) for expr in grad]
+        return grad, grad_at_xbar
+
+    def compute_hessian(self):
+        """Calcula a Hessiana simbólica (constante para funções quadráticas)."""
+        hessian = Matrix([[diff(diff(self.f_sym, xi), xj) for xj in (self.x1, self.x2)] 
+                         for xi in (self.x1, self.x2)])
+        return hessian
+
+    def check_convexity(self, hessian):
+        """Verifica se a função é convexa via autovalores da Hessiana."""
+        eigenvalues = hessian.eigenvals()
+        is_convex = all(val > 0 for val in eigenvalues.keys())
+        return eigenvalues, is_convex
+
+    def compute_curvature(self, hessian, d):
+        """Calcula a curvatura na direção d em x̄."""
+        H_numeric = np.array(hessian.subs({self.x1:1, self.x2:1})).astype(float)
+        return d.T @ H_numeric @ d
+
+    def preconditioning(self, hessian):
+        """Realiza a mudança de variáveis usando decomposição de Cholesky."""
+        H_numeric = np.array(hessian.subs({self.x1:1, self.x2:1})).astype(float)
+        L = np.linalg.cholesky(H_numeric)
+        P = L.T
+        P_inv = np.linalg.inv(P)
+        return P, P_inv
+
+    def visualize(self):
+        """Gera gráficos 3D e de contorno."""
+        f_numeric = lambdify((self.x1, self.x2), self.f_sym, 'numpy')
+        x1_vals = np.linspace(-2, 2, 100)
+        x2_vals = np.linspace(-2, 2, 100)
+        X1, X2 = np.meshgrid(x1_vals, x2_vals)
+        Z = f_numeric(X1, X2)
+
+        fig = plt.figure(figsize=(12, 5))
+        ax1 = fig.add_subplot(121, projection='3d')
+        ax1.plot_surface(X1, X2, Z, cmap='viridis', alpha=0.8)
+        ax1.scatter(1, 1, f_numeric(1, 1), color='red', s=100, label='x̄ = (1,1)')
+        ax1.set_title('Superfície de f(x₁, x₂)')
+        ax1.set_xlabel('x₁')
+        ax1.set_ylabel('x₂')
+
+        ax2 = fig.add_subplot(122)
+        contour = ax2.contour(X1, X2, Z, levels=15, cmap='viridis')
+        ax2.plot(1, 1, 'ro', label='x̄ = (1,1)')
+        ax2.quiver(1, 1, self.d[0], self.d[1], angles='xy', scale_units='xy', scale=1, color='blue', label='Direção d')
+        ax2.set_title('Curvas de nível')
+        ax2.legend()
+        plt.colorbar(contour)
+
+        plt.tight_layout()
+        plt.show()
+
+    def run_analysis(self):
+        """Executa toda a análise e imprime os resultados."""
+        print("="*50)
+        print("ANÁLISE DA FUNÇÃO QUADRÁTICA")
+        print("f(x₁, x₂) = x₁² + 2x₁x₂ + 2x₂²")
+        print("="*50)
+
+        # 1. Gradiente
+        grad, grad_at_xbar = self.compute_gradient()
+        print("\n1. Gradiente:")
+        print(f"∇f(x₁, x₂) = {grad}")
+        print(f"∇f(1, 1) = {grad_at_xbar}")
+
+        # 2. Hessiana
+        hessian = self.compute_hessian()
+        print("\n2. Matriz Hessiana:")
+        print(f"H_f = \n{hessian}")
+
+        # 3. Convexidade
+        eigenvalues, is_convex = self.check_convexity(hessian)
+        print("\n3. Análise de Convexidade:")
+        print(f"Autovalores: {eigenvalues}")
+        print("A função é estritamente convexa? ", "Sim" if is_convex else "Não")
+
+        # 4. Curvatura
+        curvature = self.compute_curvature(hessian, self.d)
+        print("\n4. Curvatura na Direção d:")
+        print(f"Para d = {self.d}:")
+        print(f"Curvatura = dᵀH_fd = {curvature:.2f}")
+
+        # 5. Precondicionamento
+        P, P_inv = self.preconditioning(hessian)
+        print("\n5. Precondicionamento:")
+        print(f"Matriz de transformação P:\n{P}")
+        print(f"Inversa P⁻¹:\n{P_inv}")
+        print("\nExemplo: x = x̄ + P⁻¹y para y = [0.5, 0.5]")
+        print("x_transformado =", self.x_bar + P_inv @ np.array([0.5, 0.5]))
+
+        # Visualização
+        self.visualize()
+
+# Executa a análise
+if __name__ == "__main__":
+    analyzer = QuadraticFunctionAnalyzer()
+    analyzer.run_analysis()
+
+#5. f(x1, x2) = x21− x1x2 + 2x22− 2x1 + ex1+x2, ¯x = (0, 0)T .
+
+import numpy as np
+from sympy import symbols, diff, Matrix, exp, lambdify
+import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d import Axes3D
+
+# Definindo símbolos
+x, y = symbols('x y')
+
+# Definindo a função simbólica
+f_expr = x**2 - x*y + 2*y**2 - 2*x + exp(x + y)
+
+# Ponto e direção analisados
+ponto_base = np.array([0.0, 0.0])
+direcao = np.array([1.0, 1.0])
+
+def gradiente_funcao(expr):
+    grad_simbolico = [diff(expr, var) for var in (x, y)]
+    grad_numerico = [float(g.subs({x: 0, y: 0})) for g in grad_simbolico]
+    return grad_simbolico, grad_numerico
+
+def hessiana_funcao(expr):
+    H = Matrix([[diff(diff(expr, i), j) for j in (x, y)] for i in (x, y)])
+    H_numerico = np.array(H.subs({x: 0, y: 0})).astype(float)
+    return H, H_numerico
+
+def verificar_convexidade(H):
+    autovalores = np.linalg.eigvals(np.array(H.subs({x: 0, y: 0})).astype(float))
+    local_convexo = all(val > 0 for val in autovalores)
+    
+    global_convexo = True
+    for _ in range(100):
+        x_val, y_val = np.random.uniform(-5, 5, 2)
+        H_ponto = np.array(H.subs({x: x_val, y: y_val})).astype(float)
+        if not np.all(np.linalg.eigvals(H_ponto) > 0):
+            global_convexo = False
+            break
+            
+    return autovalores, local_convexo, global_convexo
+
+def curvatura_direcional(H_val, direcao):
+    return direcao.T @ H_val @ direcao
+
+def precondicionamento(H_val):
+    L = np.linalg.cholesky(H_val)
+    P = L.T
+    P_inv = np.linalg.inv(P)
+    return P, P_inv
+
+def plotar_graficos(f_expr, d):
+    f_lamb = lambdify((x, y), f_expr, 'numpy')
+    x_vals = np.linspace(-2, 2, 100)
+    y_vals = np.linspace(-2, 2, 100)
+    X, Y = np.meshgrid(x_vals, y_vals)
+    Z = f_lamb(X, Y)
+
+    fig = plt.figure(figsize=(15, 6))
+    
+    # Superfície 3D
+    ax1 = fig.add_subplot(121, projection='3d')
+    surf = ax1.plot_surface(X, Y, Z, cmap='plasma', alpha=0.85)
+    ax1.scatter(0, 0, f_lamb(0, 0), color='red', s=100, label='Ponto base')
+    ax1.set_title('Superfície da função')
+    ax1.set_xlabel('x')
+    ax1.set_ylabel('y')
+    fig.colorbar(surf, ax=ax1, shrink=0.5)
+
+    # Contornos
+    ax2 = fig.add_subplot(122)
+    contornos = ax2.contour(X, Y, Z, levels=25, cmap='plasma')
+    ax2.plot(0, 0, 'ro', label='Ponto base')
+    ax2.quiver(0, 0, d[0], d[1], color='blue', scale=5, label='Direção d')
+    ax2.set_title('Curvas de nível')
+    ax2.legend()
+    plt.colorbar(contornos)
+
+    plt.tight_layout()
+    plt.show()
+
+def main():
+    print("="*60)
+    print("ANÁLISE DA FUNÇÃO: f(x, y) = x² - xy + 2y² - 2x + e^(x+y)")
+    print("="*60)
+
+    # Gradiente
+    grad_sim, grad_num = gradiente_funcao(f_expr)
+    print("\n1. GRADIENTE:")
+    print("∇f(x, y) =")
+    for g in grad_sim:
+        print(f"  {g}")
+    print(f"∇f(0, 0) = {grad_num}")
+
+    # Hessiana
+    H_sim, H_num = hessiana_funcao(f_expr)
+    print("\n2. HESSIANA:")
+    print(f"H(x, y) =\n{H_sim}")
+    print(f"H(0, 0) =\n{H_num}")
+
+    # Convexidade
+    autovalores, local_cvx, global_cvx = verificar_convexidade(H_sim)
+    print("\n3. CONVEXIDADE:")
+    print(f"Autovalores em (0,0): {autovalores}")
+    print(f"Convexa localmente? {'Sim' if local_cvx else 'Não'}")
+    print(f"Convexa globalmente? {'Sim' if global_cvx else 'Não'}")
+
+    # Curvatura
+    curv = curvatura_direcional(H_num, direcao)
+    print("\n4. CURVATURA NA DIREÇÃO:")
+    print(f"Direção d = {direcao}")
+    print(f"Curvatura em (0,0): {curv:.4f}")
+
+    # Precondicionamento
+    P, P_inv = precondicionamento(H_num)
+    print("\n5. PRECONDICIONAMENTO:")
+    print(f"Matriz P:\n{P}")
+    print(f"Matriz P⁻¹:\n{P_inv}")
+    y = np.array([0.5, 0.3])
+    x_transformado = ponto_base + P_inv @ y
+    print(f"x = x̄ + P⁻¹·y para y = {y}")
+    print(f"x_transformado = {x_transformado}")
+
+    # Visualização
+    print("\nGerando gráficos...")
+    plotar_graficos(f_expr, direcao)
+
+# Executar o script
+if __name__ == "__main__":
+    main()
+
+##########################################################################
+
+Exercício 4 - Função 61 - Hansen
+A partir de diferentes pontos iniciais, encontrar ao menos dois dos mínimos globais.
+
+import numpy as np
+import matplotlib.pyplot as plt
+from matplotlib import cm
+from mpl_toolkits.mplot3d import Axes3D
+
+# Nova versão da função de Hansen com coeficientes diferentes
+def modified_hansen(x):
+    x1, x2 = x
+    term1 = sum((i + 2) * np.cos(i * x1 + i + 2) for i in range(1, 6))  # Alterado para 5 termos
+    term2 = sum((j + 1.5) * np.cos((j + 1.5) * x2 + j + 2) for j in range(0, 5))  # Coeficientes não inteiros
+    return term1 * term2
+
+# Parâmetros para visualização
+x = np.linspace(-12, 12, 150)  # Domínio ampliado
+y = np.linspace(-12, 12, 150)
+X, Y = np.meshgrid(x, y)
+Z = np.zeros_like(X)
+
+# Calculando os valores da função
+for i in range(X.shape[0]):
+    for j in range(X.shape[1]):
+        Z[i,j] = modified_hansen([X[i,j], Y[i,j]])
+
+# Encontrando mínimos globais numericamente
+from scipy.optimize import basinhopping
+
+# Função para encontrar múltiplos mínimos
+def find_minima(n_tries=20):
+    minima = []
+    for _ in range(n_tries):
+        x0 = np.random.uniform(-12, 12, 2)
+        res = basinhopping(modified_hansen, x0, niter=50, T=1.0, stepsize=3.0)
+        # Verifica se é um novo mínimo
+        is_new = True
+        for m in minima:
+            if np.linalg.norm(res.x - m[0]) < 1.0:  # Tolerância de distância
+                is_new = False
+                break
+        if is_new:
+            minima.append((res.x, res.fun))
+    return sorted(minima, key=lambda x: x[1])[:6]  # Retorna os 6 melhores mínimos
+
+minima = find_minima()
+
+# Configuração dos gráficos
+plt.figure(figsize=(20, 7))
+
+# Gráfico 1: Superfície 3D com nova paleta de cores
+ax1 = plt.subplot(1, 3, 1, projection='3d')
+surf = ax1.plot_surface(X, Y, Z, cmap=cm.viridis, alpha=0.7, antialiased=True)
+ax1.set_title('Superfície da Função Modificada', pad=15)
+ax1.set_xlabel('x1', labelpad=10)
+ax1.set_ylabel('x2', labelpad=10)
+ax1.set_zlabel('f(x1,x2)', labelpad=10)
+ax1.view_init(elev=30, azim=45)
+plt.colorbar(surf, ax=ax1, shrink=0.5, aspect=10, pad=0.1)
+
+# Gráfico 2: Curvas de nível com mínimo global
+ax2 = plt.subplot(1, 3, 2)
+contour = ax2.contourf(X, Y, Z, levels=30, cmap=cm.plasma)
+ax2.set_title('Mapa de Calor com Curvas de Nível', pad=15)
+ax2.set_xlabel('x1', labelpad=10)
+ax2.set_ylabel('x2', labelpad=10)
+
+# Marcando todos os mínimos encontrados
+for i, (coord, val) in enumerate(minima):
+    color = 'gold' if i < 2 else 'silver'  # Destaca os dois primeiros
+    ax2.scatter(coord[0], coord[1], color=color, s=80, edgecolor='black', linewidth=1)
+    if i < 2:  # Anota apenas os dois principais
+        ax2.annotate(f'Min {i+1}\n({coord[0]:.2f}, {coord[1]:.2f})\nf={val:.2f}',
+                    (coord[0], coord[1]), xytext=(10, 15),
+                    textcoords='offset points', ha='center',
+                    bbox=dict(boxstyle="round,pad=0.3", fc="white", ec="black", lw=1))
+
+plt.colorbar(contour, ax=ax2, shrink=0.5, aspect=10, pad=0.1)
+
+# Gráfico 3: Visualização em 3D dos mínimos
+ax3 = plt.subplot(1, 3, 3, projection='3d')
+ax3.plot_surface(X, Y, Z, cmap=cm.viridis, alpha=0.5)
+ax3.set_title('Mínimos Globais em 3D', pad=15)
+ax3.set_xlabel('x1', labelpad=10)
+ax3.set_ylabel('x2', labelpad=10)
+ax3.set_zlabel('f(x1,x2)', labelpad=10)
+
+# Plotando os mínimos como esferas
+for i, (coord, val) in enumerate(minima):
+    color = 'gold' if i < 2 else 'silver'
+    ax3.scatter([coord[0]], [coord[1]], [val], color=color, s=100, edgecolor='black', depthshade=False)
+    if i < 2:
+        ax3.text(coord[0], coord[1], val, f' Min {i+1}', color='black', zorder=10)
+
+plt.tight_layout()
+plt.show()
+
+# Resultados numéricos detalhados
+print("\nMínimos Globais Encontrados:")
+print("{:<10} {:<15} {:<15} {:<15}".format("Mínimo", "x1", "x2", "f(x1,x2)"))
+for i, (coord, val) in enumerate(minima):
+    print(f"{i+1:<10} {coord[0]:<15.6f} {coord[1]:<15.6f} {val:<15.6f}")
+
+# Comparação entre os dois principais mínimos
+print("\nComparação entre os dois principais mínimos:")
+diff_x = minima[1][0][0] - minima[0][0][0]
+diff_y = minima[1][0][1] - minima[0][0][1]
+print(f"Distância entre Mín 1 e Mín 2: {np.sqrt(diff_x**2 + diff_y**2):.4f} unidades")
+print(f"Diferença nos valores: {abs(minima[1][1] - minima[0][1]):.6f}")
+
+Exercício 3 - Função 142 - Streched V Sine Wave Function
+Avaliar para diferentes valores de D
+
+import numpy as np
+import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d import Axes3D
+
+def streched_v_sine_wave(x, D):
+    """Calcula o valor da função Streched V Sine Wave para um vetor x de dimensão D."""
+    total = 0.0
+    for i in range(D - 1):
+        sum_sq = x[i+1]**2 + x[i]**2
+        term = (sum_sq)**0.25 * (np.sin(50 * (sum_sq)**0.1)**2 + 0.1)
+        total += term
+    return total
+
+# --- Configurações ---
+D_values = [2, 3, 4]  # Dimensões a serem testadas
+num_samples = 3       # Número de amostras por D
+fixed_range = (-5, 5) # Novo intervalo para x_i (diferente do original [-10, 10])
+
+# --- Função para gerar amostras ---
+def generate_samples(D, num_samples, x_range):
+    return np.random.uniform(x_range[0], x_range[1], (num_samples, D))
+
+# --- Avaliação para cada D ---
+results = {}
+for D in D_values:
+    samples = generate_samples(D, num_samples, fixed_range)
+    results[D] = []
+    print(f"\n=== D = {D} (Intervalo x_i ∈ [{fixed_range[0]}, {fixed_range[1]}]) ===")
+    for j, x in enumerate(samples):
+        value = streched_v_sine_wave(x, D)
+        results[D].append((x.round(2), value.round(4)))
+        print(f"Amostra {j+1}: x = {x.round(2)} → f(x) = {value:.4f}")
+
+# --- Gráficos para D = 2 e D = 3 ---
+plt.figure(figsize=(15, 5))
+
+# Gráfico 3D para D=2
+if 2 in D_values:
+    x1 = np.linspace(fixed_range[0], fixed_range[1], 100)
+    x2 = np.linspace(fixed_range[0], fixed_range[1], 100)
+    X1, X2 = np.meshgrid(x1, x2)
+    Z = np.zeros_like(X1)
+    for i in range(X1.shape[0]):
+        for j in range(X1.shape[1]):
+            Z[i, j] = streched_v_sine_wave(np.array([X1[i, j], X2[i, j]]), 2)
+    
+    ax1 = plt.subplot(131, projection='3d')
+    ax1.plot_surface(X1, X2, Z, cmap='plasma', alpha=0.8)
+    ax1.set_title(f'Superfície 3D (D=2)\nIntervalo: {fixed_range}')
+    ax1.set_xlabel('x1')
+    ax1.set_ylabel('x2')
+
+# Gráfico de corte para D=3 (fixando x3=0)
+if 3 in D_values:
+    x1 = np.linspace(fixed_range[0], fixed_range[1], 100)
+    x2 = np.linspace(fixed_range[0], fixed_range[1], 100)
+    X1, X2 = np.meshgrid(x1, x2)
+    Z = np.zeros_like(X1)
+    for i in range(X1.shape[0]):
+        for j in range(X1.shape[1]):
+            Z[i, j] = streched_v_sine_wave(np.array([X1[i, j], X2[i, j], 0]), 3)
+    
+    ax2 = plt.subplot(132)
+    contour = ax2.contourf(X1, X2, Z, levels=20, cmap='plasma')
+    plt.colorbar(contour, ax=ax2)
+    ax2.set_title(f'Corte 2D (D=3, x3=0)\nIntervalo: {fixed_range}')
+    ax2.set_xlabel('x1')
+    ax2.set_ylabel('x2')
+
+# Gráfico de valores para D=4 (amostras aleatórias)
+if 4 in D_values:
+    samples_D4 = generate_samples(4, 100, fixed_range)
+    values_D4 = [streched_v_sine_wave(x, 4) for x in samples_D4]
+    
+    ax3 = plt.subplot(133)
+    ax3.hist(values_D4, bins=20, color='purple', edgecolor='black')
+    ax3.set_title(f'Distribuição de f(x) para D=4\nIntervalo: {fixed_range}')
+    ax3.set_xlabel('f(x)')
+    ax3.set_ylabel('Frequência')
+
+plt.tight_layout()
+plt.show()
+
+
+
+Exercício 2- Função 114 - Scahffer 3
+Testar para diferentes pontos iniciais.
+
+import numpy as np
+import matplotlib.pyplot as plt
+from matplotlib import cm
+from mpl_toolkits.mplot3d import Axes3D
+
+def scalifier3(x1, x2):
+    """Calcula o valor da função Scalifier 3"""
+    termo_sin = np.sin(np.cos(np.abs(x1**2 - x2**2)))**2
+    denominador = 1 + 0.001*(x1**2 + x2**2)**2
+    return 0.5 + (termo_sin - 0.5) / denominador
+
+# Definindo novos conjuntos de pontos iniciais
+conjuntos_pontos = {
+    "Próximos ao mínimo": [
+        [0.0, 1.2],
+        [0.1, 1.253115],
+        [-0.05, 1.1],
+        [0.0, 1.5]
+    ],
+    "Pontos distantes": [
+        [75.0, -80.0],
+        [-90.0, 95.0],
+        [100.0, -100.0],
+        [-100.0, 0.0]
+    ],
+    "Pontos especiais": [
+        [1.253115, 1.253115],
+        [-1.253115, 0.0],
+        [2.0, 2.0],
+        [-3.0, 3.0]
+    ],
+    "Pontos médios": [
+        [10.0, 10.0],
+        [-15.0, 20.0],
+        [25.0, -30.0],
+        [-40.0, 40.0]
+    ]
+}
+
+# Calculando os valores para cada conjunto
+resultados = {}
+for nome, pontos in conjuntos_pontos.items():
+    resultados[nome] = [(x1, x2, scalifier3(x1, x2)) for x1, x2 in pontos]
+
+# Exibindo os resultados em formato tabular
+print("{:<20} {:<15} {:<15} {:<15}".format("Conjunto", "x1", "x2", "f(x1,x2)"))
+print("="*65)
+for nome, valores in resultados.items():
+    print(f"→ {nome}:")
+    for x1, x2, val in valores:
+        print("{:<20} {:<15.6f} {:<15.6f} {:<15.6f}".format("", x1, x2, val))
+    print("-"*65)
+
+# Visualização 3D com destaque para regiões diferentes
+fig = plt.figure(figsize=(18, 12))
+
+# 1. Superfície 3D completa
+ax1 = fig.add_subplot(231, projection='3d')
+x = np.linspace(-100, 100, 200)
+y = np.linspace(-100, 100, 200)
+X, Y = np.meshgrid(x, y)
+Z = scalifier3(X, Y)
+surf = ax1.plot_surface(X, Y, Z, cmap=cm.coolwarm, alpha=0.6)
+ax1.set_title('Visão Global (-100 a 100)')
+ax1.set_zlim(0, 1)
+
+# 2. Zoom na região próxima ao mínimo
+ax2 = fig.add_subplot(232, projection='3d')
+x_zoom = np.linspace(-2, 2, 100)
+y_zoom = np.linspace(0, 2.5, 100)
+Xz, Yz = np.meshgrid(x_zoom, y_zoom)
+Zz = scalifier3(Xz, Yz)
+surf_z = ax2.plot_surface(Xz, Yz, Zz, cmap=cm.viridis)
+ax2.set_title('Zoom no Mínimo (x1:[-2,2], x2:[0,2.5])')
+ax2.set_zlim(0, 1)
+
+# 3. Mapa de contorno
+ax3 = fig.add_subplot(233)
+contour = ax3.contourf(Xz, Yz, Zz, levels=50, cmap=cm.viridis)
+plt.colorbar(contour, ax=ax3)
+ax3.set_title('Mapa de Contorno na Região do Mínimo')
+ax3.set_xlabel('x1')
+ax3.set_ylabel('x2')
+
+# Marcando pontos especiais no contorno
+for nome, pontos in conjuntos_pontos.items():
+    for x1, x2 in pontos:
+        if abs(x1) <= 2 and 0 <= x2 <= 2.5:  # Só mostra pontos dentro da área do zoom
+            ax3.plot(x1, x2, 'o', markersize=8, label=f'({x1:.2f},{x2:.2f})')
+
+ax3.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
+
+# 4. Gráfico de valores por conjunto
+ax4 = fig.add_subplot(212)
+for i, (nome, valores) in enumerate(resultados.items()):
+    x = [f"Ponto {j+1}" for j in range(len(valores))]
+    y = [val for _, _, val in valores]
+    ax4.plot(x, y, 'o-', label=nome, markersize=8)
+
+ax4.axhline(y=0.00156685, color='r', linestyle='--', label='Mínimo global')
+ax4.set_title('Comparação de Valores entre Conjuntos')
+ax4.set_ylabel('f(x1,x2)')
+ax4.legend()
+ax4.grid(True)
+
+plt.tight_layout()
+plt.show()
+
+Exercício 1 - Função 105 - Rosenbrock
+Avaliar para diferentes valores de D
+
+import numpy as np
+import matplotlib.pyplot as plt
+from tabulate import tabulate
+
+def rosenbrock(x, D):
+    """Calcula o valor da função Rosenbrock para D dimensões"""
+    return sum(100*(x[i+1] - x[i]**2)**2 + (x[i] - 1)**2 for i in range(D-1))
+
+def rosenbrock_gradient(x, D):
+    """Calcula o gradiente da função Rosenbrock"""
+    grad = np.zeros(D)
+    for i in range(D-1):
+        grad[i] += -400 * x[i] * (x[i+1] - x[i]**2) + 2 * (x[i] - 1)
+        grad[i+1] += 200 * (x[i+1] - x[i]**2)
+    return grad
+
+# Configurações diferentes do exemplo anterior
+dimensoes = [3, 7, 15, 25, 50]  # Valores diferentes de D
+num_pontos = 4                    # Número de pontos por dimensão
+np.random.seed(123)               # Semente diferente para variedade
+
+# Gerar dados
+dados = []
+for D in dimensoes:
+    pontos = [np.random.uniform(-1.5, 1.5, D) for _ in range(num_pontos)]
+    valores = [rosenbrock(p, D) for p in pontos]
+    normas_grad = [np.linalg.norm(rosenbrock_gradient(p, D)) for p in pontos]
+    
+    dados.append({
+        'Dimensão': D,
+        'Pontos': pontos,
+        'Valores': valores,
+        'Norma Grad': normas_grad
+    })
+
+# Exibir tabela comparativa
+tabela = []
+for item in dados:
+    for i in range(num_pontos):
+        tabela.append([
+            item['Dimensão'] if i == 0 else "",
+            f"Ponto {i+1}",
+            f"{item['Valores'][i]:.2e}",
+            f"{item['Norma Grad'][i]:.2e}"
+        ])
+
+print(tabulate(tabela, 
+               headers=["D", "Ponto", "f(x)", "‖∇f(x)‖"], 
+               tablefmt="grid",
+               floatfmt=".2e"))
+
+# Visualização para D=3 (cortes 2D)
+if 3 in dimensoes:
+    D = 3
+    idx = dimensoes.index(3)
+    
+    # Preparar dados para visualização
+    x = np.linspace(-1.5, 1.5, 100)
+    y = np.linspace(-1.5, 1.5, 100)
+    X, Y = np.meshgrid(x, y)
+    
+    # Cortes mantendo a terceira dimensão fixa
+    Z1 = np.zeros_like(X)  # x3 = 0
+    Z2 = np.zeros_like(X)  # x3 = 1
+    
+    for i in range(X.shape[0]):
+        for j in range(X.shape[1]):
+            Z1[i,j] = rosenbrock(np.array([X[i,j], Y[i,j], 0]), D)
+            Z2[i,j] = rosenbrock(np.array([X[i,j], Y[i,j], 1]), D)
+    
+    # Plotar
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(15, 6))
+    
+    # Corte com x3 = 0
+    cont1 = ax1.contourf(X, Y, np.log(Z1+1), levels=20, cmap='viridis')
+    ax1.set_title('Corte da Rosenbrock 3D (x3 = 0) - Escala log')
+    ax1.set_xlabel('x1')
+    ax1.set_ylabel('x2')
+    fig.colorbar(cont1, ax=ax1)
+    
+    # Corte com x3 = 1
+    cont2 = ax2.contourf(X, Y, np.log(Z2+1), levels=20, cmap='plasma')
+    ax2.set_title('Corte da Rosenbrock 3D (x3 = 1) - Escala log')
+    ax2.set_xlabel('x1')
+    ax2.set_ylabel('x2')
+    fig.colorbar(cont2, ax=ax2)
+    
+    plt.tight_layout()
+    plt.show()
+
+# Análise de convergência para diferentes D
+print("\nAnálise de Médias:")
+analise = []
+for item in dados:
+    analise.append([
+        item['Dimensão'],
+        f"{np.mean(item['Valores']):.2e} ± {np.std(item['Valores']):.2e}",
+        f"{np.mean(item['Norma Grad']):.2e}",
+        f"{min(item['Valores']):.2e}"
+    ])
+
+print(tabulate(analise, 
+               headers=["D", "Média f(x) ± DP", "Média ‖∇f(x)‖", "Mínimo f(x)"], 
+               tablefmt="grid",
+               floatfmt=".2e"))
+
+
+#Equipamento: 
+
+#Processador Intel(R) Core(TM) i3 CPU M 380 @ 2.53GHz 2.53 GHz 
+#RAM instalada 8,00 GB 
+#Tipo de sistema SO de 64 bits, processador baseado em x64
+
