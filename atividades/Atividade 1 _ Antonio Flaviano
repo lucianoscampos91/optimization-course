@@ -1,0 +1,373 @@
+print("\n# CAP2 - EXERCICIO 2.2. QUESTÃO 1 ~ QUESTÃO 5")
+
+#ATIVIDADE 2
+
+import sympy as sp
+
+# 1. Definindo as variáveis simbólicas
+x1, x2 = sp.symbols('x1 x2')
+
+# 2. Funções do exercício 2.2
+funcoes = [
+    (1/2)*x1**2 + (9/2)*x2**2,
+    (1/3)*x1**3 + x2**3 - x1 - x2,
+    (x1 - 2)**4 + (x1 - 2)**2*(x2 + 1)**2 + (x2 + 1)**2,
+    x1**2 + 2*x1*x2 + 2*x2**2,
+    x1**2 - x1*x2 + 2*x2**2 - 2*x1 + sp.exp(x1 + x2)
+]
+
+# 3. Pontos especificados
+pontos = [
+    {x1: 0, x2: 0},
+    {x1: 9, x2: 1},
+    {x1: 2, x2: -1},
+    {x1: 1, x2: 1},
+    {x1: 0, x2: 0}
+]
+
+# 4. Títulos
+titulos = [
+    "Exercício 2.2.1",
+    "Exercício 2.2.2",
+    "Exercício 2.2.3",
+    "Exercício 2.2.4",
+    "Exercício 2.2.5"
+]
+
+# 5. Direção para curvatura
+d = sp.Matrix([1, 1])
+
+# 6. Loop para resolver todos os exercícios
+for i, f in enumerate(funcoes):
+    print("\n" + "="*60)
+    print(f"🔍 {titulos[i]}")
+    print("="*60)
+
+    # Gradiente
+    grad = [sp.diff(f, var) for var in (x1, x2)]
+    print("Gradiente:")
+    print(grad)
+
+    # Hessiana
+    hess = sp.hessian(f, (x1, x2))
+    print("\nHessiana:")
+    sp.pprint(hess)
+
+    # Ponto específico
+    ponto = pontos[i]
+    hess_at_ponto = hess.subs(ponto)
+    print(f"\nHessiana no ponto {ponto}:")
+    sp.pprint(hess_at_ponto)
+
+    # Autovalores
+    eigenvals = hess_at_ponto.eigenvals()
+    print("\nAutovalores:")
+    print(eigenvals)
+
+    # Curvatura na direção d = [1, 1]
+    curvatura = (d.T * hess_at_ponto * d)[0]
+    print(f"\nCurvatura na direção d = [1, 1]: {curvatura}")
+
+    # Classificação da função
+    autovalores = list(eigenvals.keys())
+    if all(val.is_real for val in autovalores):
+        if all(val > 0 for val in autovalores):
+            print("✔️ A função é estritamente convexa nesse ponto (Hessiana definida positiva)")
+        elif all(val < 0 for val in autovalores):
+            print("✔️ A função é estritamente côncava nesse ponto (Hessiana definida negativa)")
+        elif all(val >= 0 for val in autovalores):
+            print("⚠️ A função é convexa, mas não estritamente (Hessiana semidefinida positiva)")
+        elif all(val <= 0 for val in autovalores):
+            print("⚠️ A função é côncava, mas não estritamente (Hessiana semidefinida negativa)")
+        else:
+            print("❌ A função não é convexa nem côncava (Hessiana indefinida)")
+    else:
+        print("⚠️ Autovalores não reais — análise de convexidade inconclusiva")
+
+
+# ATIVIDADE 5
+
+#5.1
+import sympy as sp
+from scipy.optimize import minimize_scalar
+
+# 1. Definindo a variável simbólica
+x = sp.Symbol('x')
+f = x ** 2 + 1 / (x - 2)
+
+# 2. Derivada (gradiente)
+df = sp.diff(f, x)
+print("Gradiente (f'):")
+sp.pprint(df)
+
+# 3. Segunda derivada (Hessiana em R¹)
+d2f = sp.diff(df, x)
+print("\nSegunda derivada (f''):")
+sp.pprint(d2f)
+
+# 4. Tentando encontrar pontos críticos reais (df = 0)
+critical_points = sp.solve(df, x)
+
+# 5. Filtrar apenas os pontos reais e diferentes de x = 2
+valid_points = [
+    pt for pt in critical_points
+    if pt.is_real and not sp.simplify(pt - 2) == 0
+]
+
+print("\nPontos críticos reais (válidos):")
+print(valid_points)
+
+# 6. Análise da segunda derivada nos pontos críticos
+for pt in valid_points:
+    second_derivative_value = d2f.subs(x, pt)
+    print(f"\nNo ponto x = {pt}: f''(x) = {second_derivative_value}")
+    if second_derivative_value > 0:
+        print("→ Mínimo local")
+    elif second_derivative_value < 0:
+        print("→ Máximo local")
+    else:
+        print("→ Ponto de inflexão")
+
+# 7. Caso não haja ponto crítico real, encontrar mínimo numérico
+if not valid_points:
+    print("\nNão há ponto crítico real viável. Fazendo busca numérica no intervalo (2.01, 5)...")
+
+
+    def f_num(x_val):
+        return x_val ** 2 + 1 / (x_val - 2)
+
+
+    result = minimize_scalar(f_num, bounds=(2.01, 5), method='bounded')
+
+    print(f"\nMínimo numérico aproximado:")
+    print(f"x ≈ {result.x:.4f}")
+    print(f"f(x) ≈ {result.fun:.4f}")
+
+#5.2
+import sympy as sp
+
+# Definindo as variáveis
+x1, x2 = sp.symbols('x1 x2')
+
+# Definindo a função objetivo
+f = (1 / 3) * x1 ** 3 + x2 ** 3 - x1 - x2
+
+# 1. Calculando o gradiente
+grad_f = [sp.diff(f, var) for var in (x1, x2)]
+print("Gradiente:")
+print(grad_f)
+
+# 2. Calculando a matriz Hessiana
+hess_f = sp.hessian(f, (x1, x2))
+print("\nHessiana:")
+sp.pprint(hess_f)
+
+# 3. Encontrando os pontos críticos (gradiente = 0)
+critical_points = sp.solve(grad_f, (x1, x2))
+print("\nPontos críticos:")
+print(critical_points)
+
+# 4. Verificando as condições de segunda ordem (autovalores da Hessiana)
+print("\nAnálise dos pontos críticos:")
+for point in critical_points:
+    hess_at_point = hess_f.subs({x1: point[0], x2: point[1]})
+    eigenvals = hess_at_point.eigenvals()
+
+    print(f"\nPonto crítico: {point}")
+    print("Hessiana no ponto:")
+    sp.pprint(hess_at_point)
+    print("Autovalores:", eigenvals)
+
+    # Classificação
+    eigenvalues_list = list(eigenvals.keys())
+    if all(val > 0 for val in eigenvalues_list):
+        print("→ Mínimo local")
+    elif all(val < 0 for val in eigenvalues_list):
+        print("→ Máximo local")
+    else:
+        print("→ Ponto de sela")
+
+#5.3
+import sympy as sp
+from scipy.optimize import minimize_scalar
+
+# 1. Definindo a variável simbólica
+x = sp.Symbol('x')
+f = x ** 2 + 1 / (x - 2)
+
+# 2. Derivada (gradiente)
+df = sp.diff(f, x)
+print("Gradiente (f'):")
+sp.pprint(df)
+
+# 3. Segunda derivada (Hessiana em R¹)
+d2f = sp.diff(df, x)
+print("\nSegunda derivada (f''):")
+sp.pprint(d2f)
+
+# 4. Tentando encontrar pontos críticos reais (df = 0)
+critical_points = sp.solve(df, x)
+
+# 5. Filtrar apenas os pontos reais e diferentes de x = 2
+valid_points = [
+    pt for pt in critical_points
+    if pt.is_real and not sp.simplify(pt - 2) == 0
+]
+
+print("\nPontos críticos reais (válidos):")
+print(valid_points)
+
+# 6. Análise da segunda derivada nos pontos críticos
+for pt in valid_points:
+    second_derivative_value = d2f.subs(x, pt)
+    print(f"\nNo ponto x = {pt}: f''(x) = {second_derivative_value}")
+    if second_derivative_value > 0:
+        print("→ Mínimo local")
+    elif second_derivative_value < 0:
+        print("→ Máximo local")
+    else:
+        print("→ Ponto de inflexão")
+
+# 7. Caso não haja ponto crítico real, encontrar mínimo numérico
+if not valid_points:
+    print("\nNão há ponto crítico real viável. Fazendo busca numérica no intervalo (2.01, 5)...")
+
+
+    def f_num(x_val):
+        return x_val ** 2 + 1 / (x_val - 2)
+
+
+    result = minimize_scalar(f_num, bounds=(2.01, 5), method='bounded')
+
+    print(f"\nMínimo numérico aproximado:")
+    print(f"x ≈ {result.x:.4f}")
+    print(f"f(x) ≈ {result.fun:.4f}")
+
+#5.4
+import sympy as sp
+
+# 1. Definindo as variáveis simbólicas
+x1, x2 = sp.symbols('x1 x2')
+f = x1**6 - 3*x1**4*x2**2 + 3*x1**2*x2**4 - x2**6
+
+# 2. Gradiente (primeiras derivadas)
+grad_f = [sp.diff(f, var) for var in (x1, x2)]
+print("Gradiente:")
+print(grad_f)
+
+# 3. Hessiana (matriz de segundas derivadas)
+hess_f = sp.hessian(f, (x1, x2))
+print("\nHessiana:")
+sp.pprint(hess_f)
+
+# 4. Pontos críticos (resolvendo gradiente = 0)
+critical_points = sp.solve(grad_f, (x1, x2), dict=True)
+valid_points = [pt for pt in critical_points if x1 in pt and x2 in pt]
+
+print("\nPontos críticos encontrados:")
+print(valid_points)
+
+# 5. Avaliação da Hessiana e autovalores
+for pt in valid_points:
+    point_val = (pt[x1], pt[x2])
+    hess_at_point = hess_f.subs(pt)
+    eigenvals = hess_at_point.eigenvals()
+
+    print(f"\nAnálise no ponto crítico: {point_val}")
+    print("Hessiana avaliada no ponto:")
+    sp.pprint(hess_at_point)
+    print("Autovalores da Hessiana:", eigenvals)
+
+    # Classificação
+    eigenvalues_list = list(eigenvals.keys())
+    if all(val > 0 for val in eigenvalues_list):
+        print("→ Mínimo local")
+    elif all(val < 0 for val in eigenvalues_list):
+        print("→ Máximo local")
+    elif all(val == 0 for val in eigenvalues_list):
+        print("→ Condição de segunda ordem inconclusiva (todos os autovalores são zero)")
+    else:
+        print("→ Ponto de sela ou condição inconclusiva")
+
+#5.5
+import sympy as sp
+
+# 1. Definindo variáveis simbólicas
+x1, x2 = sp.symbols('x1 x2')
+
+# 2. Lista das funções (2.2.1 a 2.2.5)
+funcoes = [
+    (1/2)*x1**2 + (9/2)*x2**2,
+    (1/3)*x1**3 + x2**3 - x1 - x2,
+    (x1 - 2)**4 + (x1 - 2)**2 * (x2 + 1)**2 + (x2 + 1)**2,
+    x1**2 + 2*x1*x2 + 2*x2**2,
+    x1**2 - x1*x2 + 2*x2**2 - 2*x1 + sp.exp(x1 + x2)
+]
+
+# 3. Títulos para exibir
+titulos = [
+    "Exercício 2.2.1",
+    "Exercício 2.2.2",
+    "Exercício 2.2.3",
+    "Exercício 2.2.4",
+    "Exercício 2.2.5"
+]
+
+# 4. Análise de cada função
+for i, f in enumerate(funcoes):
+    print("\n" + "="*60)
+    print(f"🔍 {titulos[i]}")
+    print("="*60)
+
+    # Gradiente
+    grad = [sp.diff(f, var) for var in (x1, x2)]
+    print("Gradiente:")
+    print(grad)
+
+    # Hessiana
+    hess = sp.hessian(f, (x1, x2))
+    print("\nHessiana:")
+    sp.pprint(hess)
+
+    # Pontos críticos
+    if i == 4:  # caso especial para função com exponencial (2.2.5)
+        from sympy import nsolve
+        try:
+            ponto_numerico = sp.nsolve(grad, (x1, x2), (0, 0))
+            pt = {x1: ponto_numerico[0], x2: ponto_numerico[1]}
+            pontos_criticos = [pt]
+            print("\n🔢 Ponto crítico aproximado numericamente:")
+            print(pt)
+        except Exception as e:
+            print("❌ Erro ao resolver numericamente:", e)
+            pontos_criticos = []
+    else:
+        pontos_criticos = sp.solve(grad, (x1, x2), dict=True)
+        print("\nPonto(s) crítico(s):")
+        print(pontos_criticos)
+
+    # Análise dos pontos críticos
+    for pt in pontos_criticos:
+        if x1 in pt and x2 in pt:
+            ponto_val = (pt[x1], pt[x2])
+            hess_at_pt = hess.subs(pt)
+            eigenvals = hess_at_pt.eigenvals()
+
+            print(f"\n→ Análise no ponto {ponto_val}:")
+            print("Hessiana avaliada:")
+            sp.pprint(hess_at_pt)
+            print("Autovalores:", eigenvals)
+
+            autovalores = list(eigenvals.keys())
+            if all(val.is_real for val in autovalores):
+                if all(val > 0 for val in autovalores):
+                    print("✔️ Mínimo local (e possivelmente global)")
+                elif all(val < 0 for val in autovalores):
+                    print("✔️ Máximo local")
+                elif all(val == 0 for val in autovalores):
+                    print("⚠️ Condição de segunda ordem inconclusiva (valores nulos)")
+                else:
+                    print("⚠️ Ponto de sela ou condição mista")
+            else:
+                print("⚠️ Autovalores complexos — análise de segunda ordem inconclusiva")
+
